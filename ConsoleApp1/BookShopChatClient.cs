@@ -52,7 +52,7 @@ namespace ConsoleApp1
 
             return new ChatCompletion(new[]
             {
-                new ChatMessage
+                new ChatMessagex
                 {
                     Role = ChatRole.Assistant,
                     Text = response
@@ -189,7 +189,7 @@ namespace ConsoleApp1
         void IDisposable.Dispose() { }
     }
     public class InputData
-    {
+    {                                                                                             
         public string Text { get; set; }
     }
 

@@ -41,12 +41,10 @@ namespace StringVectorizer
                     WordFeatureExtractor = new Microsoft.ML.Transforms.Text.WordBagEstimator.Options
                     {
                         NgramLength = 1, // Use unigrams (adjustable)
-                        UseAllLengths = true
                     },
                     CharFeatureExtractor = new Microsoft.ML.Transforms.Text.WordBagEstimator.Options
                     {
                         NgramLength = 1, // Use unigrams (adjustable)
-                        UseAllLengths = true
                     }, // Disable character n-grams
                 });
 

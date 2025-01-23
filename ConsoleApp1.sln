@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp1", "ConsoleApp1\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vectorize", "Vectorize\Vectorize.csproj", "{1984F852-2AFE-48D8-AC62-649590727BBC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SentimentAnalysis", "SentimentAnalysis\SentimentAnalysis.csproj", "{67220906-6D68-4877-8771-744059AC086B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{1984F852-2AFE-48D8-AC62-649590727BBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1984F852-2AFE-48D8-AC62-649590727BBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1984F852-2AFE-48D8-AC62-649590727BBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67220906-6D68-4877-8771-744059AC086B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67220906-6D68-4877-8771-744059AC086B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67220906-6D68-4877-8771-744059AC086B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67220906-6D68-4877-8771-744059AC086B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
