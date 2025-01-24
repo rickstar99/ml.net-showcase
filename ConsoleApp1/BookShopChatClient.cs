@@ -52,7 +52,7 @@ namespace ConsoleApp1
 
             return new ChatCompletion(new[]
             {
-                new ChatMessagex
+                new ChatMessage
                 {
                     Role = ChatRole.Assistant,
                     Text = response
