@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.ML;
 using Microsoft.ML.Data;
+using ObjectDetection;
 using ObjectDetection.Models;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -12,7 +13,6 @@ namespace TinyYoloWebApp.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly string _modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "models", "TinyYolo2_model.onnx");
         private readonly MLContext _mlContext;
 
         public HomeController()
@@ -27,7 +27,7 @@ namespace TinyYoloWebApp.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Index(IFormFile UploadedImage)
+        public async Task<IActionResult> ProcessLuffy(IFormFile UploadedImage)
         {
             if (UploadedImage != null && UploadedImage.Length > 0)
             {
@@ -39,107 +39,181 @@ namespace TinyYoloWebApp.Controllers
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await UploadedImage.CopyToAsync(stream);
+                    stream.Close();
                 }
 
-                // Run ONNX model and process image
-                var processedImagePath = RunOnnxModel(filePath);
+                var processedImagePath = RunLuffyModel(filePath);
 
-                ViewBag.ProcessedImagePath = $"/uploads/{Path.GetFileName(processedImagePath)}";
+                ViewBag.ProcessedImagePath = $"/processed/{Path.GetFileName(processedImagePath)}";
             }
 
             return View("Index");
         }
 
-        private string RunOnnxModel(string imagePath)
+
+        [HttpPost]
+        public async Task<IActionResult> ProcessTomCruise(IFormFile UploadedImage)
         {
-            // Load the ONNX model and pipeline
-
-            var dataView = _mlContext.Data.LoadFromEnumerable(new[] { new { ImagePath = imagePath } });
-
-            var pipeline = _mlContext.Transforms.LoadImages(outputColumnName: "image", imageFolder: "", inputColumnName: "ImagePath")
-                .Append(_mlContext.Transforms.ResizeImages("image", imageWidth: 416, imageHeight: 416, inputColumnName: "image"))
-                .Append(_mlContext.Transforms.ExtractPixels("image"))
-                .Append(_mlContext.Transforms.ApplyOnnxModel(modelFile: _modelPath, outputColumnNames: new[] { "grid" }, inputColumnNames: new[] { "image" }));
-
-
-            var model = pipeline.Fit(dataView);
-            var scoredData = model.Transform(dataView);
-
-            IEnumerable<float[]> probabilities = scoredData.GetColumn<float[]>("grid");
-            YoloOutputParser parser = new YoloOutputParser();
-
-            var boundingBoxes = probabilities.Select(probability => parser.ParseOutputs(probability)).Select(boxes => parser.FilterBoundingBoxes(boxes, 5, .5F));
-
-            // Draw bounding boxes on the image
-            string processedImagePath = DrawBoundingBox(imagePath, boundingBoxes.First());
-
-            return processedImagePath;
-        }
-
-
-     private string DrawBoundingBox(string imagePath, List<YoloBoundingBox> boundingBoxes)
-        {
-            string uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-            Directory.CreateDirectory(uploadsDir); // Ensure the uploads folder exists
-
-            // Load the original image
-            using var image = Image.FromFile(imagePath);
-            var originalImageWidth = image.Width;
-            var originalImageHeight = image.Height;
-
-            using var graphics = Graphics.FromImage(image);
-            graphics.CompositingQuality = CompositingQuality.HighQuality;
-            graphics.SmoothingMode = SmoothingMode.HighQuality;
-            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-
-            var font = new Font("Arial", 12, FontStyle.Bold);
-            var brush = new SolidBrush(Color.Yellow);
-            var pen = new Pen(Color.Red, 3);
-
-            // Draw each bounding box
-            foreach (var box in boundingBoxes)
+            if (UploadedImage != null && UploadedImage.Length > 0)
             {
-                // Scale the bounding box to the original image size
-                var x = originalImageWidth * box.Dimensions.X / 416; // YOLO model size is 416x416
-                var y = originalImageHeight * box.Dimensions.Y / 416;
-                var width = originalImageWidth * box.Dimensions.Width / 416;
-                var height = originalImageHeight * box.Dimensions.Height / 416;
+                var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                Directory.CreateDirectory(uploadsDir); // Ensure uploads directory exists
 
-                // Draw the rectangle
-                graphics.DrawRectangle(pen, x, y, width, height);
+                var filePath = Path.Combine(uploadsDir, UploadedImage.FileName);
 
-                // Draw the label and confidence
-                string label = $"{box.Label} ({box.Confidence:P1})";
-                var textSize = graphics.MeasureString(label, font);
-                graphics.FillRectangle(new SolidBrush(Color.FromArgb(125, Color.Black)), x, y - textSize.Height, textSize.Width, textSize.Height);
-                graphics.DrawString(label, font, brush, x, y - textSize.Height);
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await UploadedImage.CopyToAsync(stream);
+                    stream.Close();
+                }
+
+                var processedImagePath = RunFacesModel(filePath);
+
+
+                ViewBag.ProcessedImagePath = $"/processed/{Path.GetFileName(processedImagePath)}";
             }
 
-            // Save the processed image with a unique name
-            string processedImageName = $"processed_{Path.GetFileName(imagePath)}";
-            string processedImagePath = Path.Combine(uploadsDir, processedImageName);
-            image.Save(processedImagePath, ImageFormat.Jpeg);
+            return View("Index");
+        }
+
+        private string RunFacesModel(string imagePath)
+        {
+            // Create the directory if it doesn't exist
+            string uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "processed");
+            Directory.CreateDirectory(uploadsDir);
+
+            // 1) Create the ML image and prediction input
+            var image = MLImage.CreateFromFile(imagePath);
+            FacesDetection.ModelInput sampleData = new FacesDetection.ModelInput
+            {
+                Image = image
+            };
+
+            var predictionResult = FacesDetection.Predict(sampleData);
+
+
+            var boxesAnonymous = predictionResult.PredictedBoundingBoxes
+                ?.Chunk(4)
+                .Select(coords => new
+                {
+                    XTop = coords[0],
+                    YTop = coords[1],
+                    XBottom = coords[2],
+                    YBottom = coords[3]
+                })
+                .Zip(predictionResult.Score, (box, score) => new { Box = box, Score = score })
+                .ToList();
+
+            var boxes = boxesAnonymous.Select(b => (
+                    XTop: b.Box.XTop,
+                    YTop: b.Box.YTop,
+                    XBottom: b.Box.XBottom,
+                    YBottom: b.Box.YBottom,
+                    Score: b.Score
+                )).Where(b => b.Score > 0.7).ToList();
+
+            var processedImagePath = DrawBoundingBoxes(imagePath, boxes);
 
             return processedImagePath;
         }
 
-        public struct ImageNetSettings
+        private string RunLuffyModel(string imagePath)
         {
-            public const int imageHeight = 224;
-            public const int imageWidth = 224;
-            public const float mean = 117;
-            public const bool channelsLast = true;
+            // Create the directory if it doesn't exist
+            string uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "processed");
+            Directory.CreateDirectory(uploadsDir);
+
+            // 1) Create the ML image and prediction input
+            var image = MLImage.CreateFromFile(imagePath);
+            LuffyDetection.ModelInput sampleData = new LuffyDetection.ModelInput
+            {
+                Image = image
+            };
+
+            var predictionResult = LuffyDetection.Predict(sampleData);
+
+
+            var boxesAnonymous = predictionResult.PredictedBoundingBoxes
+                ?.Chunk(4)
+                .Select(coords => new
+                {
+                    XTop = coords[0],
+                    YTop = coords[1],
+                    XBottom = coords[2],
+                    YBottom = coords[3]
+                })
+                .Zip(predictionResult.Score, (box, score) => new { Box = box, Score = score })
+                .ToList();
+
+            var boxes = boxesAnonymous.Select(b => (
+                    XTop: b.Box.XTop,
+                    YTop: b.Box.YTop,
+                    XBottom: b.Box.XBottom,
+                    YBottom: b.Box.YBottom,
+                    Score: b.Score
+                )).ToList();
+
+            var processedImagePath = DrawBoundingBoxes(imagePath, boxes);
+            
+            return processedImagePath;
+        }
+        private string DrawBoundingBoxes( string imagePath, IEnumerable<(float XTop, float YTop, float XBottom, float YBottom, float Score)> boxes)
+        {
+            try
+            {
+                string processedDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "processed");
+                Directory.CreateDirectory(processedDir);
+
+                if (!System.IO.File.Exists(imagePath))
+                {
+                    throw new FileNotFoundException("Image file not found.", imagePath);
+                }
+
+                var fileInfo = new FileInfo(imagePath);
+                if (fileInfo.Length == 0)
+                {
+                    throw new Exception($"Image file '{imagePath}' is 0 bytes. Possibly invalid or corrupted.");
+                }
+
+                using var ms = new MemoryStream(System.IO.File.ReadAllBytes(imagePath));
+                using var image = Image.FromStream(ms);  // This can still throw if corrupted
+                using var graphics = Graphics.FromImage(image);
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                using var pen = new Pen(Color.Red, 3);
+                using var font = new Font("Arial", 12, FontStyle.Bold);
+                using var brush = new SolidBrush(Color.Yellow);
+
+                foreach (var box in boxes)
+                {
+                    float x = box.XTop;
+                    float y = box.YTop;
+                    float width = box.XBottom - x;
+                    float height = box.YBottom - y;
+
+                    graphics.DrawRectangle(pen, x, y, width, height);
+
+                    string scoreText = box.Score.ToString("0.00");
+                    var textSize = graphics.MeasureString(scoreText, font);
+
+                    graphics.FillRectangle(new SolidBrush(Color.FromArgb(125, Color.Black)),
+                                           x, y - textSize.Height, textSize.Width, textSize.Height);
+
+                    graphics.DrawString(scoreText, font, brush, x, y - textSize.Height);
+                }
+
+                string processedImageName = $"processed_{Path.GetFileName(imagePath)}";
+                string processedImagePath = Path.Combine(processedDir, processedImageName);
+                image.Save(processedImagePath, ImageFormat.Jpeg);
+
+                return processedImagePath;
+            } catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
 
-        public class YoloInput
-        {
-            public string ImagePath { get; set; }
-        }
-
-        public class YoloPrediction
-        {
-            [ColumnName("grid")]
-            public float[] PredictedLabels { get; set; }
-        }
     }
 }

@@ -1,22 +1,35 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-
   <ItemGroup>
     <Folder Include="OnnxModels\" />
+    <Folder Include="wwwroot\processed\" />
     <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.ML" Version="4.0.1" />
     <PackageReference Include="Microsoft.ML.ImageAnalytics" Version="4.0.1" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
     <PackageReference Include="Microsoft.ML.OnnxTransformer" Version="4.0.1" />
+    <PackageReference Include="Microsoft.ML.TorchSharp" Version="0.21.1" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
+    <PackageReference Include="TorchSharp-cpu" Version="0.101.5" />
   </ItemGroup>
-
+  <ItemGroup Label="LuffyDetection">
+    <None Include="LuffyDetection.mlnet">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup Label="FacesDetection">
+    <None Include="FacesDetection.mlnet">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FaceONNX\FaceONNX.csproj" />
+  </ItemGroup>
 </Project>
